@@ -1,0 +1,6 @@
+STRINGTABLE UnrealExportSettings
+{
+	UnrealExportSettings   "Unreal Export";
+	
+    UE_EXPORT  "Export To Unreal";
+}	

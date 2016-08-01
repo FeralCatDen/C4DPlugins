@@ -1,0 +1,13 @@
+enum
+{
+	IDS_OBJNAME = 1001,
+	IDS_OBJTYPE = 1002,
+	IDS_POSITION = 1003,
+	IDS_ROTATION = 1004,
+	IDS_SCALE = 1005,
+	IDS_MATERIALS = 1006,
+	IDS_CHILDREN = 1007,
+	
+	// End of symbol definition
+	_DUMMY_ELEMENT_
+};

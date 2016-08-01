@@ -1,0 +1,10 @@
+STRINGTABLE
+{
+	IDS_OBJNAME "name";
+	IDS_OBJTYPE "type";
+	IDS_POSITION "position";
+	IDS_ROTATION "rotation";
+	IDS_SCALE "scale";
+	IDS_MATERIALS "materials";
+	IDS_CHILDREN "children";
+}
