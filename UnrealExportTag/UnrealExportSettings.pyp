@@ -12,8 +12,8 @@ class UnrealExport(plugins.TagData):
     def Init(self, node):
         tag = node
         data = tag.GetDataInstance()
-        
-        data.SetBool(c4d.UE_EXPORT, True)
+
+        data.SetBool(UE_EXPORT, True)
 
         pd = tag[c4d.EXPRESSION_PRIORITY]
         if pd is not None:
@@ -23,27 +23,7 @@ class UnrealExport(plugins.TagData):
         return True
     
     def Execute(self, tag, doc, op, bt, priority, flags):
-        # bd = doc.GetRenderBaseDraw()
-        # if bd is None: return c4d.EXECUTIONRESULT_OK
-        # data = tag.GetDataInstance()
-        # if data is None: return c4d.EXECUTIONRESULT_OK
-        
-        # cp = bd.GetSceneCamera(doc)
-        # if cp is None: cp = bd.GetEditorCamera()
-        # if cp is None: return c4d.EXECUTIONRESULT_OK
-
-        # local = cp.GetMg().off * (~(op.GetUpMg() * op.GetFrozenMln())) - op.GetRelPos()
-        # hpb = utils.VectorToHPB(local)
-        
-        # if not data.GetBool(c4d.UE_EXPORT):
-        #     hpb.y = op.GetRelRot().y
-        
-        # hpb.z = op.GetRelRot().z
-
-        # op.SetRelRot(hpb)
-        
         return c4d.EXECUTIONRESULT_OK
-
 
 if __name__ == "__main__":
     dir, file = os.path.split(__file__)

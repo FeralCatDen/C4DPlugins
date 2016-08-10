@@ -5,6 +5,6 @@ CONTAINER UnrealExportSettings
     
     GROUP ID_TAGPROPERTIES
 	{
-		BOOL UE_EXPORT{}
+		BOOL UE_EXPORT { ANIM OFF; }
 	}
 }
