@@ -11,19 +11,26 @@ def vectorToArray(v):
 
 class SceneInfoSaver(plugins.SceneSaverData):
 
-	def Save(self, node, name, old_doc, filterflags):
-		doc = old_doc.GetClone()
+	def Save(self, node, name, doc, filterflags):
+		# doc = old_doc.GetClone()
 
 		def _recurseHierarchy(op, sceneStack, *parent):
 			while op:
 				try:
+
+					if "::" in op.GetName():
+						break
+
 					print "%s: %s" % (op.GetName(), type(op).__name__)
 
+					origRotationOrder = op[c4d.ID_BASEOBJECT_ROTATION_ORDER]
+					origRotation = op.GetRelRot()
 					op[c4d.ID_BASEOBJECT_ROTATION_ORDER] = 4
 
 					# Serialize basic properties
 					entry = {}
 					entry['name'] = op.GetName()
+					entry['uid'] = op.GetGUID()
 					entry['type'] = type(op).__name__
 					entry['position'] = vectorToArray(op.GetRelPos())
 					entry['scale'] = vectorToArray(op.GetRelScale())
@@ -31,10 +38,8 @@ class SceneInfoSaver(plugins.SceneSaverData):
 					entry['materials'] = []
 					entry['children'] = []
 
-					entry['matrix-x'] = vectorToArray(op.GetRelMl().v1)
-					entry['matrix-y'] = vectorToArray(op.GetRelMl().v2)
-					entry['matrix-z'] = vectorToArray(op.GetRelMl().v3)
-					entry['matrix-w'] = vectorToArray(op.GetRelMl().off)
+					op[c4d.ID_BASEOBJECT_ROTATION_ORDER] = origRotationOrder
+					op.SetRelRot(origRotation)
 
 					# Serialize material tags
 					for tag in op.GetTags():
@@ -71,7 +76,9 @@ class SceneInfoSaver(plugins.SceneSaverData):
 			return c4d.FILEERROR_NONE
 		
 		sceneStack = []
-		_recurseHierarchy(doc.GetFirstObject(), sceneStack)
+		sceneStack.append({})
+		sceneStack[0]['actors'] = []
+		_recurseHierarchy(doc.GetFirstObject(), sceneStack[0]['actors'])
 		
 		state = _writeProcess(doc, name, sceneStack)
 		return state
