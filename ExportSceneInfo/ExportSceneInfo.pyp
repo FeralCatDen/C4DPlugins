@@ -12,12 +12,14 @@ def vectorToArray(v):
 class SceneInfoSaver(plugins.SceneSaverData):
 
 	def Save(self, node, name, doc, filterflags):
-		# doc = old_doc.GetClone()
 
 		def _recurseHierarchy(op, sceneStack, *parent):
 			while op:
 				try:
 
+					# Names with "::" in them are internal objects derived from xrefs. 
+					# Since the xrefs will be replaced when importing into UE4, 
+					# their internals don't need to be exported here.
 					if "::" in op.GetName():
 						break
 
