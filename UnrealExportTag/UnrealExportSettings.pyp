@@ -3,7 +3,7 @@ import os
 import c4d
 from c4d import bitmaps, plugins, utils
 
-PLUGIN_ID = 1000001
+PLUGIN_ID = 1039715
 
 UE_EXPORT = 1016
 

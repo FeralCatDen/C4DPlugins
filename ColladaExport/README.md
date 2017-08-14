@@ -5,8 +5,8 @@ A script for exporting Collada files that doesn't ignore empty null objects in a
 
 ## Features
 
+- Exports empty null objects
 - Automatically removes all xref objects
-- Null objects with no children are given empty polygon object children 
 - Objects in layers which contain the word 'NO_EXPORT' will not be exported
 
 

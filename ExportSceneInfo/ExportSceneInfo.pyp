@@ -4,7 +4,7 @@ import json
 
 from c4d import plugins, documents, gui, utils
 
-PLUGIN_ID = 1000000
+PLUGIN_ID = 1039716
 
 MISSING_MATERIAL = "MISSING MATERIAL"
 
