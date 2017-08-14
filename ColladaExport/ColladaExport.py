@@ -1,12 +1,24 @@
 import c4d
-
 from c4d import plugins, documents, storage, gui
+import xml.etree.ElementTree as ET
+import uuid
 
+# Constants
+uuidString = str( uuid.uuid1() )
 colladaPluginId = 1025755
 noExportFlag = 'NO_EXPORT'
 nullTypeName = 'Null'
 xrefTypeName = 'XRef'
+xrefInteriorObjTag = '::'
+polygonName = 'Polygon' + uuidString
 
+# Setup COLLADA XML namespace
+colladaSchemaURI = 'http://www.collada.org/2008/03/COLLADASchema'
+ns = '{' + colladaSchemaURI + '}'
+nsPrefix = 'COLLADA_NAMESPACE' + uuidString
+ET._namespace_map[ colladaSchemaURI ] = nsPrefix
+
+# Globals
 xrefCounter = 0
 polyCounter = 0
 docCopy = None
@@ -19,13 +31,12 @@ def main():
 
 	# Get the COLLADA export plugin
 	colladaPlugin = plugins.FindPlugin( colladaPluginId, c4d.PLUGINTYPE_SCENESAVER )
-	if colladaPlugin is None:
-		gui.MessageDialog( 'Cannot find COLLADA (.dae) exporter. Check the plugin ID.' );
-		return
+	assert colladaPlugin is not None
 
 	# Get a path to save the exported file
 	filePath = c4d.storage.LoadDialog( title = 'Save File for COLLADA Export', flags = c4d.FILESELECT_SAVE, force_suffix = 'dae' )
 
+	# Exit if the user cancels the save dialog
 	if filePath is None:
 		return
 
@@ -47,15 +58,11 @@ def main():
 
 	# Configure COLLADA export plugin and export the modified scene
 	if colladaPlugin.Message( c4d.MSG_RETRIEVEPRIVATEDATA, op ):
-		if 'imexporter' not in op:
-			gui.MessageDialog( 'There was an error with the COLLADA exporter.' )
-			return
+		assert 'imexporter' in op
 
 		# Get the exporter settings from the plugin object
 		colladaExport = op[ 'imexporter' ]
-		if colladaExport is None:
-			gui.MessageDialog( 'There was an error with the COLLADA exporter.' )
-			return
+		assert colladaExport is not None
 
 		# Define the settings
 		colladaExport[ c4d.COLLADA_EXPORT_ANIMATION ] = True
@@ -63,7 +70,37 @@ def main():
 		
 		# Export without the dialog
 		if c4d.documents.SaveDocument( docCopy, filePath, c4d.SAVEDOCUMENTFLAGS_DONTADDTORECENTLIST, colladaPluginId ):
-			gui.MessageDialog( 'Export complete\n\nRemoved %d xrefs\nAdded %d polygon objects' % ( xrefCounter, polyCounter ) )
+			
+			# Parse the saved COLLADA data as XML
+			colladaData = ET.parse( filePath )
+			parentMap = dict( ( c, p ) for p in colladaData.getiterator() for c in p )
+			
+			# Construct geometry id map
+			geomIdMap = dict()
+			for node in colladaData.getiterator():
+				if node.tag == ns + 'geometry':
+					geomIdMap[ node.get( 'id' ) ] = node
+			
+			# Remove Polygon objects and associated geometry data
+			for node in colladaData.getiterator():
+				if node.tag == ns + 'node':
+					if node.get( 'name' ) == polygonName:
+						geomId = node.find( ns + 'instance_geometry' ).get( 'url' )[ 1: ]
+						geomNode = geomIdMap[ geomId ]
+						parentMap[ geomNode ].remove( geomNode )
+						parentMap[ node ].remove( node )
+
+			# Remove the namespace from all tags
+			xmlString = ET.tostring( colladaData.getroot() )
+			xmlString = xmlString.replace( nsPrefix + ':', '' )
+			xmlString = xmlString.replace( ':' + nsPrefix, '' )
+
+			# Write the modified COLLADA file
+			colladaFile = open( filePath, 'w' )
+			colladaFile.write( xmlString )
+			colladaFile.close()
+
+			gui.MessageDialog( 'Export complete\n\nRemoved %d xrefs\nFixed %d empty null objects' % ( xrefCounter, polyCounter ) )
 		else:
 			gui.MessageDialog( 'The document failed to save.' );
 			return
@@ -83,7 +120,7 @@ def RemoveXRefs( op ):
 		# Names with "::" in them are internal objects derived from xrefs. 
 		# Since the xrefs will be replaced when importing into js,
 		# their internals don't need to be exported here.
-		if '::' in op.GetName():
+		if xrefInteriorObjTag in op.GetName():
 			break
 
 		if xrefTypeName in op.GetTypeName():
@@ -137,6 +174,7 @@ def FixUpEmptyNulls( op ):
 		if nullTypeName in op.GetTypeName():
 			if len( op.GetChildren() ) == 0:
 				polyOp = c4d.PolygonObject( 0, 0 )
+				polyOp.SetName( polygonName )
 				polyOp.InsertUnder( op )
 				polyCounter += 1
 
