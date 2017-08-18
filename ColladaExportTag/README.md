@@ -6,7 +6,7 @@ A plugin tag which allows for per-object settings when exporting .DAE files for 
 ## Features
 
 - Mark an object for exclusion from exporting
-- Mark an object as requiring an external texture, either an SVG or a PNG
+- Mark an object as requiring an external texture file
 - Has a duck icon
 
 ## Wishlist 
