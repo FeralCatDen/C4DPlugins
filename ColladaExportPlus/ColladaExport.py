@@ -246,7 +246,7 @@ class ColladaExport():
                 texNameMetadata += '___'
 
                 # Add texture filename metadata
-                if texPath is not None:
+                if len( texPath ) is not 0:
 
                     fileName = os.path.basename( texPath )
                     fileExt = os.path.splitext( texPath )[ 1 ].upper()
