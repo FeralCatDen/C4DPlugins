@@ -1,4 +1,4 @@
-import os.path, uuid
+import os, uuid, ntpath
 import xml.etree.ElementTree as ET
 import c4d
 from c4d import plugins, documents, storage, gui
@@ -33,7 +33,9 @@ class ColladaExport():
     COLLADA_EXPORT_SETTINGS_TRANSFER_COLOR = 1019
     COLLADA_EXPORT_SETTINGS_USE_TEXTURE_ALPHA = 1020
     COLLADA_EXPORT_SETTINGS_CUSTOM_DATA = 1021
+    COLLADA_EXPORT_SETTINGS_MERGE_CHILDREN = 1022
 
+    doc = None
     docCopy = None
     xrefCounter = 0
     polyCounter = 0
@@ -43,8 +45,8 @@ class ColladaExport():
 
 
     def Execute( self, filepath, exportanim, exportnulls, removexrefs, removetextags ):
-        doc = documents.GetActiveDocument()
-        assert doc is not None
+        self.doc = documents.GetActiveDocument()
+        assert self.doc is not None
 
         c4d.StopAllThreads()
 
@@ -52,8 +54,13 @@ class ColladaExport():
         colladaPlugin = plugins.FindPlugin( colladaPluginId, c4d.PLUGINTYPE_SCENESAVER )
         assert colladaPlugin is not None
 
+        # Perform requested geometry merges, can only be done on current document,
+        # so this will be undone at the end.
+        mergeObjects = self.GetMergeGeometryObjs( self.doc.GetFirstObject(), [] )
+        self.MergeGeometry( mergeObjects )
+
         # Clone the current document so the modifications aren't applied to the original scene
-        self.docCopy = doc.GetClone( c4d.COPYFLAGS_DOCUMENT )
+        self.docCopy = self.doc.GetClone( c4d.COPYFLAGS_DOCUMENT )
         assert self.docCopy is not None
 
         # Remove xrefs
@@ -61,7 +68,10 @@ class ColladaExport():
             self.RemoveXRefs( self.docCopy.GetFirstObject() )
 
         # Remove objects that are on non-exporting layers
-        self.RemoveNonExporting( self.docCopy.GetFirstObject() )
+        removeObjects = self.RemoveNonExporting( self.docCopy.GetFirstObject(), [] )
+        for op in removeObjects: 
+            print op.GetName()
+            op.Remove()
 
         # Add object export settings as metadata appended to object names
         self.ExportDataToNameMeta( self.docCopy.GetFirstObject() )
@@ -106,6 +116,7 @@ class ColladaExport():
             # Get first effect and material nodes to prevent them from being deleted
             firstEffectNode = colladaData.find( './/' + ns + 'effect' )
             firstMaterialNode = colladaData.find( './/' + ns + 'material' )
+            firstMaterialId = firstMaterialNode.get( 'id' )
             
             # Iterate thru the hierarchy and deal with things
             for node in colladaData.getiterator():
@@ -131,6 +142,10 @@ class ColladaExport():
                 if node.tag == ns + 'material':
                     if node != firstMaterialNode:
                         parentMap[ node ].remove( node )
+
+                # Set material target to the first material id
+                if node.tag == ns + 'instance_material':
+                    node.set( 'target', '#' + firstMaterialId )
             
             # Remove the namespace from all tags
             xmlString = ET.tostring( colladaData.getroot() )
@@ -142,12 +157,22 @@ class ColladaExport():
             colladaFile.write( xmlString )
             colladaFile.close()
 
+            # Cleanup
+            if len( mergeObjects ) is not 0:
+
+                for op in mergeObjects:
+                    for x in range( 0, 3 ):
+                        self.doc.DoUndo( False )
+
+                self.doc.DoUndo( False )
+                self.doc.DoUndo( False )
+
             return 'Export complete\n\nRemoved %d xrefs\nFixed %d empty null objects' % ( self.xrefCounter, self.polyCounter )
         else:
             return 'The document failed to save.'
 
 
-    def RemoveXRefs( self, op ): 
+    def RemoveXRefs( self, op ):
 
         while op:
 
@@ -167,7 +192,7 @@ class ColladaExport():
             op = op.GetNext()
 
 
-    def RemoveNonExporting( self, op ):
+    def RemoveNonExporting( self, op, list ):
 
         while op:
 
@@ -188,12 +213,16 @@ class ColladaExport():
                     remove = True
 
             if remove is True:
-                op.Remove()
-                break
+                # print op.GetName()
+                list.append( op )
+                # op.Remove()
+                # break
 
             # Recurse thru the hierarchy
-            self.RemoveNonExporting( op.GetDown() )
+            self.RemoveNonExporting( op.GetDown(), list )
             op = op.GetNext()
+
+        return list
 
 
     def RemoveTextureTags( self, op ):
@@ -225,6 +254,56 @@ class ColladaExport():
             op = op.GetNext()
 
 
+    def GetMergeGeometryObjs( self, op, objects ):
+
+        while op:
+
+            # Names with "::" in them are internal objects derived from xrefs. 
+            # Since the xrefs will be replaced when importing into js,
+            # their internals don't need to be exported here.
+            if xrefInteriorObjTag in op.GetName():
+                break
+
+            exportTag = op.GetTag( colladaExportTagId )
+
+            if exportTag is not None:
+
+                data = exportTag.GetData()
+                shouldMerge = data.GetBool( self.COLLADA_EXPORT_SETTINGS_MERGE_CHILDREN )
+
+                if shouldMerge is True:
+
+                    objects.append( op )
+
+            self.GetMergeGeometryObjs( op.GetDown(), objects )
+            op = op.GetNext()
+
+        return objects
+
+
+    def MergeGeometry( self, objects ):
+
+        for op in objects: 
+
+            # Set selection to root node
+            self.doc.SetSelection( op )
+
+            # Select children
+            c4d.CallCommand( 100004768 )
+
+            # Make editable
+            c4d.CallCommand( 12236 )
+
+            # Set selection to root node
+            self.doc.SetSelection( op )
+
+            # Select children
+            c4d.CallCommand( 100004768 )
+
+            # Connect objects and delete
+            c4d.CallCommand( 16768 )
+
+
     def ExportDataToNameMeta( self, op ):
 
         while op:
@@ -248,14 +327,14 @@ class ColladaExport():
                 # Add texture filename metadata
                 if len( texPath ) is not 0:
 
-                    fileName = os.path.basename( texPath )
-                    fileExt = os.path.splitext( texPath )[ 1 ].upper()
+                    fileName = ntpath.basename( texPath )
+                    fileExt = ntpath.splitext( texPath )[ 1 ].upper()
 
                     # Append the texture file name to the end of the object's name
                     # It gets a special label if it's an SVG, since those are handled
                     # differently than normal textures
-                    texNameMetadata += 'SVG' if fileExt is 'SVG' else 'TEX'
-                    texNameMetadata += '___' + fileName
+                    texNameMetadata += 'SVG' if fileExt == '.SVG' else 'TEX'
+                    texNameMetadata += '_' + fileName
 
                     if useAlpha is True:
                         texNameMetadata += '___ALPHA'
@@ -289,7 +368,7 @@ class ColladaExport():
                             useNameMetadata = True
 
                 # Add additional custom metadata
-                if customData is not None:
+                if len( customData ) is not 0:
 
                     for dataItem in customData.split( ',' ): 
                         texNameMetadata += '__'

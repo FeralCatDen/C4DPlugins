@@ -7,5 +7,7 @@ STRINGTABLE ColladaExportSettings
     COLLADA_EXPORT_SETTINGS_TRANSFER_COLOR		"Transfer Luminance Color";
     COLLADA_EXPORT_SETTINGS_USE_TEXTURE_ALPHA	"Use Texture As Alpha";
     COLLADA_EXPORT_SETTINGS_CUSTOM_DATA			"Custom Metadata";
-    COLLADA_EXPORT_SETTINGS_CUSTOM_DATA_HELP	"Separate multiple parameters by commas. Ex: OPACITY 0.5, GRADIENT 1";
+    COLLADA_EXPORT_SETTINGS_MERGE_CHILDREN		"Merge Child Geometry";
+    COLLADA_EXPORT_SETTINGS_CUSTOM_DATA_HELP	"Separate multiple parameters by commas. Ex: 
+    OPACITY 0.5, GRADIENT 1";
 }
