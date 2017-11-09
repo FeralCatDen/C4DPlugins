@@ -14,6 +14,11 @@ nullTypeName = 'Null'
 xrefTypeName = 'XRef'
 xrefInteriorObjTag = '::'
 
+metadataTagID = 'META'
+metadataTagAlpha = 'AL'
+metadataTagColor = 'CO'
+metadataTagCount = 'ID'
+
 # Add a uuid to end of the polygon object name. 
 # This prevents the names from colliding with existing
 # objects in the scene when they are deleted
@@ -42,6 +47,7 @@ class ColladaExport():
 
     def __init__( self, name = 'ColladaExport' ):
         self.name = name
+        self.idCounter = 0;
 
 
     def Execute( self, filepath, exportanim, exportnulls, removexrefs, removetextags ):
@@ -70,11 +76,16 @@ class ColladaExport():
         # Remove objects that are on non-exporting layers
         removeObjects = self.RemoveNonExporting( self.docCopy.GetFirstObject(), [] )
         for op in removeObjects: 
-            print op.GetName()
             op.Remove()
 
         # Add object export settings as metadata appended to object names
         self.ExportDataToNameMeta( self.docCopy.GetFirstObject() )
+
+        # Add object GUIDs to object names, to force a unique name
+        self.ExportGUIDToName( self.docCopy.GetFirstObject() )
+
+        # Collect warnings for names that are too long
+        self.WarnIfLongName( self.docCopy.GetFirstObject() )
 
         # Add empty polygon objects to childless null objects so that they are exported by the
         # COLLADA exporter
@@ -191,7 +202,6 @@ class ColladaExport():
             self.RemoveXRefs( op.GetDown() )
             op = op.GetNext()
 
-
     def RemoveNonExporting( self, op, list ):
 
         while op:
@@ -213,10 +223,7 @@ class ColladaExport():
                     remove = True
 
             if remove is True:
-                # print op.GetName()
                 list.append( op )
-                # op.Remove()
-                # break
 
             # Recurse thru the hierarchy
             self.RemoveNonExporting( op.GetDown(), list )
@@ -304,6 +311,30 @@ class ColladaExport():
             c4d.CallCommand( 16768 )
 
 
+    def ExportGUIDToName( self, op ):
+
+        while op:
+
+            op.SetName( op.GetName() + '___' + metadataTagCount + '_' + str( self.idCounter ) )
+
+            self.idCounter = self.idCounter + 1
+
+            # Recurse thru the hierarchy
+            self.ExportGUIDToName( op.GetDown() )
+            op = op.GetNext()
+
+
+    def WarnIfLongName( self, op ):
+
+        while op:
+
+            if len( op.GetName() ) > 63:
+                print 'WARNING: Name \"' + op.GetName() + '\" is too long!' 
+
+            self.WarnIfLongName( op.GetDown() )
+            op = op.GetNext()
+
+
     def ExportDataToNameMeta( self, op ):
 
         while op:
@@ -321,7 +352,7 @@ class ColladaExport():
 
                 useNameMetadata = False
 
-                texNameMetadata = 'METADATA'
+                texNameMetadata = metadataTagID
                 texNameMetadata += '___'
 
                 # Add texture filename metadata
@@ -337,7 +368,7 @@ class ColladaExport():
                     texNameMetadata += '_' + fileName
 
                     if useAlpha is True:
-                        texNameMetadata += '___ALPHA'
+                        texNameMetadata += '___' + metadataTagAlpha
 
                     useNameMetadata = True
 
@@ -363,7 +394,7 @@ class ColladaExport():
                             if texPath is not None: 
                                 texNameMetadata += '___'
                         
-                            texNameMetadata += 'MATCOLOR ' + hex
+                            texNameMetadata += metadataTagColor + '_' + hex
 
                             useNameMetadata = True
 

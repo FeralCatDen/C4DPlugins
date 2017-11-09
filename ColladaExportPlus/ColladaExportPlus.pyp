@@ -70,7 +70,7 @@ class ColladaExportPlusDialog( gui.GeDialog ):
         self.SetBool( self.COLLADAEXPORT_ANIMATION, True )
         self.SetBool( self.COLLADAEXPORT_EMPTY_NULLS, True )
         self.SetBool( self.COLLADAEXPORT_REMOVE_XREFS, True )
-        self.SetBool( self.COLLADAEXPORT_REMOVE_TEXTURE_TAGS, True )
+        self.SetBool( self.COLLADAEXPORT_REMOVE_TEXTURE_TAGS, False )
         return True
 
 
@@ -92,8 +92,9 @@ class ColladaExportPlusDialog( gui.GeDialog ):
                 self.GetBool( self.COLLADAEXPORT_REMOVE_TEXTURE_TAGS )
             )
 
+            print result
+
             c4d.EventAdd()
-            gui.MessageDialog( result )
             self.Close()
             
         return True
